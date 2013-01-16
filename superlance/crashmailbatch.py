@@ -1,4 +1,4 @@
-#!/usr/bin/env python -u
+#!/usr/bin/python -uB
 ##############################################################################
 #
 # Copyright (c) 2007 Agendaless Consulting and Contributors.
@@ -53,24 +53,30 @@ crashmailbatch.py --toEmail="you@bar.com" --fromEmail="me@bar.com"
 
 from supervisor import childutils
 from superlance.process_state_email_monitor import ProcessStateEmailMonitor
+from time import gmtime, strftime
 
 class CrashMailBatch(ProcessStateEmailMonitor):
 
-    process_state_events = ['PROCESS_STATE_EXITED']
+    process_state_events = ['PROCESS_STATE_EXITED', 'PROCESS_STATE_RUNNING', 'PROCESS_STATE_FATAL']
 
     def __init__(self, **kwargs):
-        kwargs['subject'] = kwargs.get('subject', 'Crash alert from supervisord')
+        kwargs['subject'] = 'Alert from supervisord'
         ProcessStateEmailMonitor.__init__(self, **kwargs)
         self.now = kwargs.get('now', None)
 
     def get_process_state_change_msg(self, headers, payload):
         pheaders, pdata = childutils.eventdata(payload+'\n')
-
-        if int(pheaders['expected']):
+        pheaders['eventname'] = headers['eventname'].split('_')[2]
+        try:
+            if int(pheaders['expected']):
+                return None
+        except:
+            pass
+        if pheaders['groupname'] == 'crashmail':
             return None
 
-        txt = 'Process %(groupname)s:%(processname)s (pid %(pid)s) died \
-unexpectedly' % pheaders
+        txt = 'Process %(groupname)s:%(processname)s is in \
+%(eventname)s state' % pheaders
         return '%s -- %s' % (childutils.get_asctime(self.now), txt)
 
 def main():
@@ -79,4 +85,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

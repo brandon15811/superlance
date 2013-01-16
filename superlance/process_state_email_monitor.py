@@ -1,4 +1,4 @@
-#!/usr/bin/env python -u
+#!/usr/bin/python -uB
 ##############################################################################
 #
 # Copyright (c) 2007 Agendaless Consulting and Contributors.
@@ -44,12 +44,18 @@ class ProcessStateEmailMonitor(ProcessStateMonitor):
                           help="email subject")
         parser.add_option("-H", "--smtpHost", dest="smtp_host", default="localhost",
                           help="SMTP server hostname or address")
+        parser.add_option("-p", "--smtpPort", dest="smtp_port", default=25,
+                          help="SMTP port (defaults to 25)")
+        parser.add_option("-u", "--smtpUser", dest="smtp_user",
+                          help="SMTP username")
+        parser.add_option("-P", "--smtpPass", dest="smtp_pass",
+                          help="SMTP password")
         parser.add_option("-e", "--tickEvent", dest="eventname", default="TICK_60",
                           help="TICK event name (defaults to TICK_60)")
-        
+
         (options, args) = parser.parse_args()
         return options
-        
+
     @classmethod
     def validate_cmd_line_options(cls, options):
         if not options.to_emails:
@@ -58,11 +64,11 @@ class ProcessStateEmailMonitor(ProcessStateMonitor):
         if not options.from_email:
             parser.print_help()
             sys.exit(1)
-        
+
         validated = copy.copy(options)
         validated.to_emails = [x.strip() for x in options.to_emails.split(",")]
         return validated
-        
+
     @classmethod
     def get_cmd_line_options(cls):
         return cls.validate_cmd_line_options(cls.parse_cmd_line_options())
@@ -84,6 +90,9 @@ class ProcessStateEmailMonitor(ProcessStateMonitor):
         self.to_emails = kwargs['to_emails']
         self.subject = kwargs.get('subject')
         self.smtp_host = kwargs.get('smtp_host', 'localhost')
+        self.smtp_port = kwargs.get('smtp_port', 25)
+        self.smtp_user = kwargs.get('smtp_user')
+        self.smtp_pass = kwargs.get('smtp_pass')
         self.digest_len = 76
 
     def send_batch_notification(self):
@@ -123,11 +132,11 @@ From: %(from)s\nSubject: %(subject)s\nBody:\n%(body)s\n" % email_for_log)
             self.write_stderr("Error sending email: %s\n" % e)
 
     def send_smtp(self, mime_msg, to_emails):
-        s = smtplib.SMTP(self.smtp_host)
+        s = smtplib.SMTP(self.smtp_host, 587)
+        s.login(self.smtp_user, self.smtp_pass)
         try:
             s.sendmail(mime_msg['From'], to_emails, mime_msg.as_string())
         except:
             s.quit()
             raise
         s.quit()
-
